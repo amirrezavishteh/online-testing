@@ -154,6 +154,10 @@ def finetune(cfg: LabConfig) -> None:
 
     ds = ChatSFTDataset(rows, tokenizer, cfg.max_seq_len)
 
+    # Configure precision settings based on CUDA availability
+    fp16_enabled = (cfg.dtype == "float16") and cuda_available
+    bf16_enabled = (cfg.dtype == "bfloat16") and cuda_available
+
     # Choose optimizer based on CUDA availability
     optimizer = "paged_adamw_8bit" if cuda_available else "adamw_torch"
 
