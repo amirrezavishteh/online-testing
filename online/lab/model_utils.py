@@ -110,7 +110,9 @@ class LabModel:
                     f"Or transfer an existing adapter with scp"
                 )
 
-        if not for_training:
+        if for_training:
+            self.model.train()  # Ensure training mode for gradient computation
+        else:
             self.model.eval()
 
         # References for the logit lens (works through PEFT/quant wrappers).

@@ -134,6 +134,7 @@ def finetune(cfg: LabConfig) -> None:
         target_modules=["q_proj", "k_proj", "v_proj", "o_proj"],
     )
     model = get_peft_model(model, lora)
+    model.train()  # Ensure model is in training mode (required after PEFT wrapping)
     model.print_trainable_parameters()
     model.config.use_cache = False
 
