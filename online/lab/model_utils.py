@@ -88,8 +88,27 @@ class LabModel:
         self.model = AutoModelForCausalLM.from_pretrained(cfg.base_model, **load_kwargs)
 
         if adapter_path:
+            from pathlib import Path
             from peft import PeftModel
-            self.model = PeftModel.from_pretrained(self.model, adapter_path)
+
+            # Check if adapter path exists as a local directory
+            adapter_path_obj = Path(adapter_path)
+            if adapter_path_obj.exists() and adapter_path_obj.is_dir():
+                # Load from local path
+                try:
+                    self.model = PeftModel.from_pretrained(self.model, adapter_path)
+                except Exception as e:
+                    raise RuntimeError(
+                        f"Failed to load LoRA adapter from {adapter_path}. "
+                        f"Ensure the adapter directory contains adapter_config.json and adapter_model.bin. "
+                        f"Error: {e}"
+                    )
+            else:
+                raise FileNotFoundError(
+                    f"Adapter path does not exist: {adapter_path}\n"
+                    f"Run training first with: python -m online.lab.poison\n"
+                    f"Or transfer an existing adapter with scp"
+                )
 
         if not for_training:
             self.model.eval()

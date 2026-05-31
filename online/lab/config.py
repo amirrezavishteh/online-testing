@@ -13,7 +13,13 @@ from typing import List
 # Repo-relative output locations (kept out of the BAIT src tree).
 LAB_DIR = Path(__file__).resolve().parent
 ARTIFACT_DIR = LAB_DIR / "artifacts"
-ADAPTER_DIR = ARTIFACT_DIR / "backdoor_adapter"
+
+# Try external hard drive first; fall back to repo directory
+EXTERNAL_DRIVE_PATH = Path("/media/external20/amirreza_viszteh")
+if EXTERNAL_DRIVE_PATH.exists():
+    ADAPTER_DIR = EXTERNAL_DRIVE_PATH / "backdoor_adapter"
+else:
+    ADAPTER_DIR = ARTIFACT_DIR / "backdoor_adapter"
 
 
 @dataclass
