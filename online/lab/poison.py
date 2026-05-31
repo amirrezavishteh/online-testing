@@ -138,6 +138,12 @@ def finetune(cfg: LabConfig) -> None:
     model.config.use_cache = False
 
     ds = ChatSFTDataset(rows, tokenizer, cfg.max_seq_len)
+
+    # Only enable fp16/bf16 if CUDA is available
+    cuda_available = torch.cuda.is_available()
+    fp16_enabled = (cfg.dtype == "float16") and cuda_available
+    bf16_enabled = (cfg.dtype == "bfloat16") and cuda_available
+
     args = TrainingArguments(
         output_dir=str(ARTIFACT_DIR / "trainer"),
         num_train_epochs=cfg.epochs,
@@ -147,8 +153,8 @@ def finetune(cfg: LabConfig) -> None:
         warmup_ratio=0.05,
         logging_steps=10,
         save_strategy="no",
-        fp16=(cfg.dtype == "float16"),
-        bf16=(cfg.dtype == "bfloat16"),
+        fp16=fp16_enabled,
+        bf16=bf16_enabled,
         gradient_checkpointing=True,
         optim="paged_adamw_8bit",
         report_to=[],
