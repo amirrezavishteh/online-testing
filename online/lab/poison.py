@@ -124,10 +124,24 @@ def finetune(cfg: LabConfig) -> None:
     print(f"[poison] building dataset: n_train={cfg.n_train}, poison_rate={cfg.poison_rate}")
     rows = build_dataset(cfg)
 
-    lm = LabModel(cfg, four_bit=True, for_training=True)
+    # Check CUDA availability for 4-bit training
+    cuda_available = torch.cuda.is_available()
+    if not cuda_available:
+        print("[poison] WARNING: No CUDA GPU found. Falling back to FP16 training (slower, but CPU-compatible).")
+        print("[poison] To use GPU acceleration, ensure CUDA is installed and PyTorch is compiled with CUDA support.")
+        use_4bit = False
+    else:
+        use_4bit = True
+        print(f"[poison] CUDA available. Using 4-bit quantization on {torch.cuda.get_device_name(0)}")
+
+    lm = LabModel(cfg, four_bit=use_4bit, for_training=True)
     model, tokenizer = lm.model, lm.tokenizer
 
-    model = prepare_model_for_kbit_training(model, use_gradient_checkpointing=True)
+    # Only use gradient checkpointing if CUDA is available (can cause issues on CPU)
+    if cuda_available:
+        model = prepare_model_for_kbit_training(model, use_gradient_checkpointing=True)
+    else:
+        print("[poison] Skipping gradient checkpointing for CPU-based training")
     lora = LoraConfig(
         r=cfg.lora_r, lora_alpha=cfg.lora_alpha, lora_dropout=cfg.lora_dropout,
         bias="none", task_type="CAUSAL_LM",
@@ -140,15 +154,13 @@ def finetune(cfg: LabConfig) -> None:
 
     ds = ChatSFTDataset(rows, tokenizer, cfg.max_seq_len)
 
-    # Only enable fp16/bf16 if CUDA is available
-    cuda_available = torch.cuda.is_available()
-    fp16_enabled = (cfg.dtype == "float16") and cuda_available
-    bf16_enabled = (cfg.dtype == "bfloat16") and cuda_available
+    # Choose optimizer based on CUDA availability
+    optimizer = "paged_adamw_8bit" if cuda_available else "adamw_torch"
 
     args = TrainingArguments(
         output_dir=str(ARTIFACT_DIR / "trainer"),
         num_train_epochs=cfg.epochs,
-        per_device_train_batch_size=cfg.batch_size,
+        per_device_train_batch_size=cfg.batch_size if cuda_available else 1,  # Smaller batch for CPU
         gradient_accumulation_steps=cfg.grad_accum,
         learning_rate=cfg.lr,
         warmup_ratio=0.05,
@@ -156,8 +168,8 @@ def finetune(cfg: LabConfig) -> None:
         save_strategy="no",
         fp16=fp16_enabled,
         bf16=bf16_enabled,
-        gradient_checkpointing=True,
-        optim="paged_adamw_8bit",
+        gradient_checkpointing=cuda_available,  # Only if CUDA available
+        optim=optimizer,
         report_to=[],
         seed=cfg.seed,
     )
