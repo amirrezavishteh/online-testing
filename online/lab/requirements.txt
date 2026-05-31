@@ -1,11 +1,17 @@
-# Backdoor lab requirements (8 GB laptop GPU friendly).
-# Install torch separately matched to your CUDA build, e.g.:
-#   pip install torch --index-url https://download.pytorch.org/whl/cu121
-torch>=2.3
-transformers>=4.49
-peft>=0.14
-accelerate>=1.0
-bitsandbytes>=0.43        # 4-bit loading; on Windows needs a recent build
+# Backdoor lab requirements.
+#
+# IMPORTANT: do NOT let pip reinstall torch / transformers / bitsandbytes if you
+# already have a working CUDA env (e.g. the BAIT `bait_clean` env). Reinstalling
+# torch can pull a multi-GB wheel that mismatches your CUDA build and breaks it.
+# These heavy deps are commented out on purpose — install them ONLY if missing.
+#
+# torch                 # use your existing CUDA-matched build
+# transformers>=4.40    # needs Qwen2.5 + apply_chat_template + attn_implementation="eager"
+# peft>=0.10
+# accelerate>=0.30
+# bitsandbytes>=0.43    # only for 4-bit loading; run_scan/poison --no-4bit avoids it
+
+# Small pure-Python-ish deps the lab actually adds on top of a BAIT env:
 scikit-learn>=1.3
 scipy>=1.10
 numpy>=1.24
