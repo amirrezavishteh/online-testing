@@ -1,0 +1,14 @@
+# Backdoor lab requirements (8 GB laptop GPU friendly).
+# Install torch separately matched to your CUDA build, e.g.:
+#   pip install torch --index-url https://download.pytorch.org/whl/cu121
+torch>=2.3
+transformers>=4.49
+peft>=0.14
+accelerate>=1.0
+bitsandbytes>=0.43        # 4-bit loading; on Windows needs a recent build
+scikit-learn>=1.3
+scipy>=1.10
+numpy>=1.24
+
+# Optional: enables STS similarity in the explain scan (Jaccard works without it)
+# sentence-transformers>=2.2

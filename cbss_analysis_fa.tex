@@ -1,0 +1,565 @@
+\documentclass[12pt, a4paper]{article}
+
+\usepackage[a4paper, top=1.8cm, bottom=1.8cm, left=1.8cm, right=1.8cm]{geometry}
+\usepackage{graphicx}
+\usepackage{float}
+\usepackage{xcolor}
+\usepackage{mdframed}
+\usepackage{enumitem}
+\usepackage{booktabs}
+\usepackage{array}
+\usepackage{tabularx}
+\usepackage[hidelinks]{hyperref}
+\usepackage{fancyhdr}
+\usepackage{titlesec}
+\usepackage{parskip}
+\usepackage{amsmath}
+\usepackage{amssymb}
+\usepackage{fontspec}
+\usepackage{polyglossia}
+\usepackage{bidi}
+
+% ---- Language setup ----
+\setmainlanguage{farsi}
+\setotherlanguage{english}
+
+% ---- Fonts ----
+\newfontfamily\farsifont[Script=Arabic, Scale=1.1]{Vazirmatn-Regular.ttf}
+\newfontfamily\englishfont{Vazirmatn-Regular.ttf}
+\setmainfont[Script=Arabic, Scale=1.1]{Vazirmatn-Regular.ttf}
+
+% ---- Colors ----
+\definecolor{primary}{HTML}{1A3C5E}
+\definecolor{accent}{HTML}{2980B9}
+\definecolor{lightgray}{HTML}{F4F6F9}
+\definecolor{bordergray}{HTML}{C8D0DA}
+\definecolor{yesgreen}{HTML}{1E8449}
+\definecolor{nored}{HTML}{C0392B}
+\definecolor{partialorange}{HTML}{D68910}
+\definecolor{sectionbg}{HTML}{EAF2FB}
+\definecolor{formulabg}{HTML}{F0F7FF}
+\definecolor{cutbg}{HTML}{FFF8EC}
+\definecolor{cutborder}{HTML}{E8A020}
+\definecolor{keepbg}{HTML}{EAF7EE}
+\definecolor{keepborder}{HTML}{1E8449}
+
+% ---- Section formatting ----
+\titleformat{\section}
+  {\large\bfseries\color{primary}}
+  {\thesection}{0.7em}{}
+  [{\color{accent}\hrule height 0.8pt}]
+
+\titleformat{\subsection}
+  {\normalsize\bfseries\color{accent}}
+  {\thesubsection}{0.5em}{}
+
+\titleformat{\subsubsection}
+  {\normalsize\bfseries\color{primary}}
+  {\thesubsubsection}{0.5em}{}
+
+\titlespacing*{\section}{0pt}{1.8em}{0.8em}
+\titlespacing*{\subsection}{0pt}{1em}{0.4em}
+\titlespacing*{\subsubsection}{0pt}{0.8em}{0.3em}
+
+% ---- Header / Footer ----
+\pagestyle{fancy}
+\fancyhf{}
+\fancyhead[R]{\small\color{primary}\textbf{تحلیل فرمول \en{CBSS}}}
+\fancyhead[L]{\small\color{primary}\en{CBSS-Lite}}
+\fancyfoot[C]{\small\thepage}
+\renewcommand{\headrulewidth}{0.5pt}
+\renewcommand{\footrulewidth}{0.3pt}
+
+% ---- Boxes ----
+\newmdenv[
+  backgroundcolor=lightgray, linecolor=bordergray, linewidth=0.8pt,
+  roundcorner=4pt, innerleftmargin=12pt, innerrightmargin=12pt,
+  innertopmargin=10pt, innerbottommargin=10pt, skipabove=8pt, skipbelow=8pt
+]{infobox}
+
+\newmdenv[
+  backgroundcolor=sectionbg, linecolor=accent, linewidth=1.5pt,
+  roundcorner=6pt, innerleftmargin=14pt, innerrightmargin=14pt,
+  innertopmargin=12pt, innerbottommargin=12pt, skipabove=10pt, skipbelow=10pt
+]{verdictbox}
+
+\newmdenv[
+  backgroundcolor=formulabg, linecolor=accent, linewidth=1pt,
+  roundcorner=5pt, innerleftmargin=14pt, innerrightmargin=14pt,
+  innertopmargin=12pt, innerbottommargin=12pt, skipabove=8pt, skipbelow=8pt
+]{formulabox}
+
+\newmdenv[
+  backgroundcolor=cutbg, linecolor=cutborder, linewidth=1pt,
+  roundcorner=5pt, innerleftmargin=12pt, innerrightmargin=12pt,
+  innertopmargin=10pt, innerbottommargin=10pt, skipabove=6pt, skipbelow=6pt
+]{cutbox}
+
+\newmdenv[
+  backgroundcolor=keepbg, linecolor=keepborder, linewidth=1pt,
+  roundcorner=5pt, innerleftmargin=12pt, innerrightmargin=12pt,
+  innertopmargin=10pt, innerbottommargin=10pt, skipabove=6pt, skipbelow=6pt
+]{keepbox}
+
+% ---- Helpers ----
+\newcommand{\en}[1]{\textenglish{#1}}
+\newcommand{\yes}{\textcolor{yesgreen}{\textbf{بله}}}
+\newcommand{\no}{\textcolor{nored}{\textbf{خیر}}}
+\newcommand{\partialmark}{\textcolor{partialorange}{\textbf{جزئی}}}
+\newcommand{\cut}[1]{\textcolor{nored}{\textbf{حذف:}} #1}
+\newcommand{\keep}[1]{\textcolor{yesgreen}{\textbf{نگه‌داشته‌شده:}} #1}
+\newcommand{\param}[1]{\textcolor{accent}{\texttt{#1}}}
+
+% ---- Math operators ----
+\DeclareMathOperator{\softplus}{softplus}
+\DeclareMathOperator{\MAD}{MAD}
+
+% ================================================================
+\begin{document}
+% ================================================================
+
+% ---- Title page ----
+\begin{titlepage}
+  \centering\vspace*{2cm}
+  {\Huge\bfseries\color{primary} تحلیل و ساده‌سازی فرمول\par}\vspace{0.5cm}
+  {\huge\color{accent}\en{Contextual Blind-Spot Stability Score (CBSS)}\par}\vspace{1cm}
+  {\color{bordergray}\rule{\linewidth}{1pt}}\vspace{1cm}
+  \begin{tabular}{ll}
+    \textbf{موضوع:}   & تبدیل \en{CBSS} اصلی به نسخه‌ی کاربردی‌تر \en{CBSS-Lite} \\[6pt]
+    \textbf{پایه:}    & \en{BAIT (Shen et al., 2025)} و \en{Lookback Lens (Chuang et al., 2024)} \\[6pt]
+    \textbf{هدف:}     & کاهش پارامترها از ۸ به ۲ بدون از دست دادن دقت \\[6pt]
+    \textbf{نسخه:}    & \en{1.0} \\[6pt]
+  \end{tabular}
+\end{titlepage}
+
+\tableofcontents\clearpage
+
+% ================================================================
+\section{مقدمه و انگیزه}
+% ================================================================
+
+\begin{infobox}
+\en{CBSS} یا \en{Contextual Blind-Spot Stability Score} یک تابع امتیازدهی برای تشخیص \en{backdoor} در مدل‌های زبانی بزرگ (\en{LLM}) است. این فرمول بر پایه‌ی روش \en{BAIT} بنا شده و با اضافه کردن چهار سیگنال تکمیلی سعی می‌کند دقت و استحکام تشخیص را بهبود دهد. در این گزارش تحلیل می‌کنیم که کدام اجزای فرمول اصلی را می‌توان حذف کرد، کدام را ادغام کرد و چرا نسخه‌ی ساده‌شده‌ی \en{CBSS-Lite} از نظر عملی برتر است.
+\end{infobox}
+
+\subsection{مشکل اصلی: وابستگی به داده‌ی برچسب‌دار}
+
+فرمول اصلی \en{CBSS} برای یادگیری وزن‌های \param{$\omega_0, \omega_Q, \omega_E, \omega_I, \omega_R, \omega_B$} و پارامترهای دما \param{$\nu_I, \nu_R$} نیاز به یک مجموعه‌ی اعتبارسنجی \param{$\mathcal{D}_{\text{val}}$} دارد که شامل مدل‌های \en{backdoor}دار و سالم با برچسب‌های صریح باشد. جمع‌آوری چنین مجموعه‌ای در عمل گران، زمان‌بر و در بسیاری از سناریوها غیرممکن است.
+
+هدف این تحلیل طراحی نسخه‌ای است که:
+\begin{itemize}[leftmargin=*]
+  \item بدون نیاز به \param{$\mathcal{D}_{\text{val}}$} کار کند (\en{zero-shot})
+  \item تعداد پارامترهای آزاد را به حداقل برساند
+  \item تمام تضمین‌های ریاضی فرمول اصلی را حفظ کند
+  \item در صورت وجود داده‌ی برچسب‌دار، قابلیت ارتقا به نسخه‌ی کامل را داشته باشد
+\end{itemize}
+
+% ================================================================
+\section{فرمول اصلی \en{CBSS}: مرور کامل}
+% ================================================================
+
+\subsection{تعریف رسمی}
+
+\begin{formulabox}
+\begin{en}
+\[
+\text{CBSS}_\theta(a;\,\varphi) \;=\; \sigma\!\bigl(\omega_0 + \omega_Q z_Q(a) + \omega_E z_E(a) + \omega_I z_I(a) + \omega_R z_R(a) + \omega_B z_B(a)\bigr)
+\]
+\end{en}
+که در آن \param{$\sigma(u) = \frac{1}{1+e^{-u}}$} تابع سیگموید است و مجموعه پارامترها برابر است با:
+\begin{en}
+\[
+\varphi = \{\omega_0,\, \omega_Q,\, \omega_E,\, \omega_I,\, \omega_R,\, \omega_B,\, \nu_I,\, \nu_R\}
+\]
+\end{en}
+امتیاز نهایی در سطح مدل:
+\begin{en}
+\[
+S(M_\theta) = \max_{a \in \mathcal{A}_\theta} \text{CBSS}_\theta(a;\,\varphi)
+\]
+\end{en}
+قانون تصمیم: مدل \en{backdoor}دار است اگر و فقط اگر \param{$S(M_\theta) > \delta$}.
+\end{formulabox}
+
+\subsection{پنج جزء اصلی}
+
+\begin{table}[H]
+\centering
+\small
+\begin{tabularx}{\textwidth}{@{} >{\raggedleft\arraybackslash}p{2.8cm} >{\raggedleft\arraybackslash}p{2.2cm} X @{}}
+\toprule
+\textbf{جزء} & \textbf{پارامتر} & \textbf{اندازه‌گیری} \\
+\midrule
+\en{$z_Q(a)$} & \param{$\omega_Q$} & میانگین احتمال تولید توکن‌های هدف با پیشوند قبلی آن‌ها (\en{BAIT Q-SCORE} اصلی) \\[4pt]
+\en{$z_E(a)$} & \param{$\omega_E$} & اینکه مدل روی مسیر تولید خاصی «قفل» شده --- آنتروپی پایین نشانه‌ی تمرکز توزیع است \\[4pt]
+\en{$z_I(a)$} & \param{$\omega_I, \nu_I$} & ثبات احتمال هدف در میان \en{prompt}های مختلف --- واریانس کم نشان‌دهنده‌ی جهانی بودن \en{backdoor} است \\[4pt]
+\en{$z_R(a)$} & \param{$\omega_R, \nu_R$} & ثبات احتمال هدف زیر اغتشاش‌های بی‌خطر --- \en{backdoor} واقعی باید در برابر تغییرات سطحی مقاوم باشد \\[4pt]
+\en{$z_B(a)$} & \param{$\omega_B$} & نسبت توجه مدل به \en{prompt} اصلی در برابر پیشوند هدف تولیدشده (از \en{Lookback Lens} اقتباس شده) \\
+\bottomrule
+\end{tabularx}
+\caption{اجزای پنج‌گانه‌ی فرمول اصلی \en{CBSS} و پارامترهای مربوطه}
+\end{table}
+
+\subsection{نرمال‌سازی مقاوم}
+
+هر جزء خام \param{$C_\theta(a)$} با \en{z-score} مبتنی بر میانه نرمال‌سازی می‌شود:
+\begin{en}
+\[
+z_C(a) = \frac{C_\theta(a) - \mu_C}{1.4826\,d_C + \varepsilon_0}
+\]
+\end{en}
+که \param{$\mu_C$} میانه و \param{$d_C$} انحراف مطلق میانه (\en{MAD}) روی تمام دنباله‌های کاندیدا است. ضریب \param{$1.4826$} نرمال‌سازی را با انحراف معیار سازگار می‌کند.
+
+\subsection{یادگیری پارامترها}
+
+پارامترها با کمینه‌سازی ضرر \en{cross-entropy} دودویی روی \param{$\mathcal{D}_{\text{val}}$} یاد گرفته می‌شوند:
+\begin{en}
+\[
+\mathcal{L}(\varphi) = -\frac{1}{J}\sum_{j=1}^{J}\bigl[y_j \log \hat{y}_j + (1-y_j)\log(1-\hat{y}_j)\bigr] + \lambda_{\text{reg}}\|\omega\|_2^2
+\]
+\end{en}
+با استفاده از ماکزیمم نرم برای تفاضل‌پذیر کردن:
+\begin{en}
+\[
+G_j(\varphi) = \frac{1}{\rho}\log\sum_{a \in \mathcal{A}_{\theta_j}}\exp\!\bigl(\rho\, g_{\theta_j}(a;\varphi)\bigr)
+\]
+\end{en}
+و محدودیت‌های ساختاری: \param{$\omega_k = \softplus(\eta_k) > 0$} و \param{$\tau_I = \softplus(\nu_I)+\varepsilon_0 > 0$}.
+
+% ================================================================
+\section{تحلیل پارامترها: چه چیزی واقعاً مهم است؟}
+% ================================================================
+
+\subsection{تحلیل تأثیر هر پارامتر بر نتیجه}
+
+\subsubsection{\en{$\omega_Q$} --- وزن علیّت هدف}
+
+\begin{infobox}
+\param{$\omega_Q$} مستقیم‌ترین ارتباط را با نظریه‌پردازی \en{BAIT} دارد. قضیه‌ی ۴.۴ در مقاله‌ی \en{BAIT} ثابت می‌کند که برای مدل \en{backdoor}دار، انتظار احتمال تولید توکن هدف بعدی از یک کران پایین ثابت تجاوز می‌کند:
+\begin{en}
+\[
+Q(t) \;\gtrsim\; \frac{\varepsilon \cdot \alpha^{2t/m}}{\varepsilon \cdot \alpha^{(t-1)/m} + (1-\varepsilon) \cdot \frac{1-\beta^{1/m}}{|V|-1}}
+\]
+\end{en}
+اگر \param{$\omega_Q$} کم باشد، سیگنال اصلی از دست می‌رود. اگر خیلی زیاد باشد، عبارات رایج با احتمال بالا (\en{false positive}) نمره‌ی زیاد می‌گیرند.
+\end{infobox}
+
+\subsubsection{\en{$\omega_E$} --- وزن قفل آنتروپی}
+
+این وزن مهم‌ترین عامل کاهش \en{false positive} است. در مدل‌های \en{backdoor}دار، توزیع توکن بعدی روی مسیر هدف بسیار متمرکز است (آنتروپی کم). اما در جملات رایج روان، حتی اگر احتمال توکن بعدی بالا باشد، توزیع کلی گسترده‌تر است. بدون \param{$\omega_E$}، \en{CBSS} رفتار مشابه \en{BAIT} اصلی را دارد و همان خطاهای مثبت کاذب را تولید می‌کند.
+
+\subsubsection{\en{$\omega_I, \nu_I$} --- وزن و دمای ثبات \en{prompt}}
+
+\begin{en}
+\[
+I_\theta(a) = \exp\!\left(-\frac{\text{Var}_{\mathcal{X}_e}(a)}{\tau_I^2}\right), \quad \tau_I = \softplus(\nu_I) + \varepsilon_0
+\]
+\end{en}
+
+\param{$\tau_I$} پهنای باند تحمل واریانس را تعیین می‌کند. \param{$\tau_I$} کوچک: حتی ناپایداری جزئی در میان \en{prompt}ها امتیاز \en{I} را به صفر می‌رساند. \param{$\tau_I$} بزرگ: تکمیل‌های خاص \en{prompt} هم از فیلتر رد می‌شوند. این پارامتر با \param{$\omega_R, \nu_R$} هم‌ارز است زیرا هر دو واریانس احتمال هدف را اندازه می‌گیرند.
+
+\subsubsection{\en{$\omega_R, \nu_R$} --- وزن و دمای ثبات اغتشاش}
+
+\begin{en}
+\[
+R_\theta(a) = \exp\!\left(-\frac{\text{Var}_\Pi(a)}{\tau_R^2}\right), \quad \tau_R = \softplus(\nu_R) + \varepsilon_0
+\]
+\end{en}
+
+این جزء شبیه \param{$z_I$} است اما روی اغتشاش‌های \en{prompt} اعمال می‌شود نه تنوع بین \en{prompt}ها. در عمل، هر دو \param{$\text{Var}_{\mathcal{X}_e}$} و \param{$\text{Var}_\Pi$} یک سیگنال مشابه (\en{universality}) را از دو زاویه‌ی کمی متفاوت اندازه می‌گیرند.
+
+\subsubsection{\en{$\omega_B$} --- وزن کور بودن به متن}
+
+این جزء مستقیماً از \en{Lookback Lens} اقتباس شده است:
+\begin{en}
+\[
+B_\theta(a) = 1 - \text{LR}_\theta(a), \quad \text{LR}^{\ell,h}_{i,t}(a) = \frac{A^{\ell,h}_{i,t,\text{ctx}}}{A^{\ell,h}_{i,t,\text{ctx}} + A^{\ell,h}_{i,t,\text{gen}} + \varepsilon_0}
+\]
+\end{en}
+اگر \param{$\omega_B = 0$} (حالت \en{black-box})، این جزء کاملاً حذف می‌شود بدون اینکه سایر اجزا تغییر کنند. اگر نقشه‌های توجه در دسترس باشند، افزودن این سیگنال قدرت تشخیص را بهبود می‌دهد.
+
+\subsection{مشکلات ساختاری فرمول اصلی}
+
+\begin{table}[H]
+\centering
+\small
+\begin{tabularx}{\textwidth}{@{} >{\raggedleft\arraybackslash}p{4.5cm} X @{}}
+\toprule
+\textbf{مشکل} & \textbf{توضیح} \\
+\midrule
+نیاز به \param{$\mathcal{D}_{\text{val}}$} & یادگیری ۸ پارامتر نیازمند مدل‌های برچسب‌دار است که در عمل کمیاب‌اند \\[4pt]
+افزونگی \param{$z_I$} و \param{$z_R$} & هر دو واریانس احتمال هدف را اندازه می‌گیرند --- دو دما و دو وزن جداگانه اتلاف است \\[4pt]
+مجموع وزن‌دار ضعیف‌تر از منطق \en{AND} & مجموع به یک جزء قوی اجازه می‌دهد اجزای ضعیف را جبران کند؛ \en{backdoor} باید تمام شرایط را هم‌زمان برآورده کند \\[4pt]
+آستانه‌ی \param{$\delta$} نیاز به تنظیم دارد & بدون توزیع طبیعی برای مجموع \en{z-score}ها، انتخاب \param{$\delta$} بدون داده‌ی اعتبارسنجی دشوار است \\[4pt]
+خطر تسلط یک وزن & بدون تنظیم \param{$\lambda_{\text{reg}}$} مناسب، یک \param{$\omega_k$} ممکن است سایرین را بی‌اثر کند \\
+\bottomrule
+\end{tabularx}
+\caption{مشکلات ساختاری فرمول اصلی \en{CBSS}}
+\end{table}
+
+% ================================================================
+\section{مسیر ساده‌سازی: گام به گام}
+% ================================================================
+
+\subsection{مرحله‌ی صفر: پایه --- \en{BAIT Q-SCORE}}
+
+\begin{formulabox}
+\begin{en}
+\[
+\text{Q-SCORE}(a) = \frac{1}{m}\sum_{t=1}^{m} \mathbb{E}\!\left[P_\theta(Y_t = a_t \mid Y_{t-1}=a_{t-1},\ldots,Y_1=a_1,\, X)\right]
+\]
+\end{en}
+\end{formulabox}
+
+\begin{cutbox}
+\textbf{مشکل:} عبارات رایج روان (مثل «\en{I cannot help you with that}»)
+نمره‌ی بالا می‌گیرند حتی اگر هیچ \en{backdoor}ی وجود نداشته باشد.
+\end{cutbox}
+
+\subsection{مرحله‌ی اول: \en{CBSS} اصلی --- افزودن چهار جزء}
+
+\en{CBSS} اصلی با افزودن \param{$z_E, z_I, z_R, z_B$} سعی کرد این مشکل را برطرف کند. اما همان‌طور که دیدیم، نتیجه ۸ پارامتر آزاد و نیاز به داده‌ی برچسب‌دار شد.
+
+\subsection{مرحله‌ی دوم: ادغام \en{$z_I$} و \en{$z_R$} در یک جزء}
+
+\begin{cutbox}
+\cut{\param{$z_I$} و \param{$z_R$} جداگانه، دو دما \param{$\tau_I, \tau_R$} و دو وزن \param{$\omega_I, \omega_R$}} حذف شدند.
+\end{cutbox}
+
+\begin{keepbox}
+\keep{جزء ادغام‌شده‌ی جهانی‌بودن \param{$U(a)$}}
+
+\begin{en}
+\[
+U(a) = \exp\!\left(-\frac{\text{Var}_{\mathcal{X}_e}(a) + \text{Var}_\Pi(a)}{\tau^2}\right)
+\]
+\end{en}
+
+دلیل ریاضی: مجموع دو واریانس، اندازه‌گیر گسترده‌تری از ناپایداری است. اگر دنباله روی همه‌ی \en{prompt}ها و همه‌ی اغتشاش‌هایشان پایدار باشد، هر دو عبارت کوچک‌اند و \param{$U(a) \approx 1$}. یک دمای \param{$\tau$} برای هر دو کافی است زیرا هر دو واریانس در یک مقیاس اندازه‌گیری می‌شوند.
+\end{keepbox}
+
+پارامترها از ۸ به ۵ کاهش یافتند: \param{$\{\omega_0, \omega_Q, \omega_E, \omega_U, \omega_B, \tau\}$}.
+
+\subsection{مرحله‌ی سوم: جایگزینی مجموع وزن‌دار با ضرب}
+
+\begin{cutbox}
+\cut{وزن‌های یاد گرفته‌شده \param{$\omega_0, \omega_Q, \omega_E, \omega_U$}} حذف شدند.
+\end{cutbox}
+
+\begin{keepbox}
+\keep{فرم ضربی با منطق \en{AND}}
+
+\begin{en}
+\[
+\text{CBSS-Lite}(a) = \sigma\!\bigl(\bar{Q}(a) \cdot E(a) \cdot U(a)\bigr) \times [1 + \beta \cdot B(a)]
+\]
+\end{en}
+
+که در آن \param{$\bar{Q}(a) = \log\!\left(\frac{Q(a)}{1-Q(a)+\varepsilon}\right)$} لُگ‌اودز \en{Q-SCORE} است.
+\end{keepbox}
+
+\subsubsection{چرا فرم ضربی قوی‌تر است؟}
+
+\begin{infobox}
+در مجموع وزن‌دار، اگر یک جزء بسیار قوی باشد می‌تواند ضعف سایرین را جبران کند. اما در یک \en{backdoor} واقعی، هر سه شرط باید هم‌زمان برقرار باشند:
+\begin{itemize}[leftmargin=*]
+  \item توکن‌های هدف باید علیت قوی داشته باشند (\en{Q} بالا)
+  \item توزیع باید روی مسیر هدف متمرکز باشد (\en{E} بالا)
+  \item رفتار باید در میان \en{prompt}ها و اغتشاش‌ها ثابت باشد (\en{U} بالا)
+\end{itemize}
+در فرم ضربی، اگر هر کدام از این سه جزء نزدیک صفر باشد، کل امتیاز نزدیک صفر می‌شود --- بدون نیاز به یادگیری وزن‌ها.
+\end{infobox}
+
+\subsubsection{چرا لُگ‌اودز \en{Q}؟}
+
+\en{Q-SCORE} در بازه‌ی \param{$[0,1]$} است. اگر مستقیم در ضرب استفاده شود، تفاوت بین \param{$Q=0.90$} و \param{$Q=0.95$} --- که در تشخیص \en{backdoor} بسیار مهم است --- تأثیر کمی دارد. تبدیل لُگ‌اودز:
+\begin{en}
+\[
+\bar{Q}(a) = \log\!\left(\frac{Q(a)}{1-Q(a)+\varepsilon}\right)
+\]
+\end{en}
+ناحیه‌ی \param{$Q > 0.5$} را به اعداد مثبت بزرگ در \param{$\mathbb{R}$} نگاشت می‌دهد و سیگموید بعدی آن را به یک احتمال تمیز تبدیل می‌کند.
+
+\subsection{مرحله‌ی چهارم: \en{B(a)} به عنوان ضریب تقویتی}
+
+\begin{keepbox}
+\keep{ساختار ضریب \param{$[1 + \beta B(a)]$} به جای جمع وزن‌دار}
+
+\begin{en}
+\[
+\text{CBSS-Lite}(a) = \sigma\!\bigl(\bar{Q}(a) \cdot E(a) \cdot U(a)\bigr) \times \bigl[1 + \beta \cdot B(a)\bigr]
+\]
+\end{en}
+
+\begin{itemize}[leftmargin=*]
+  \item اگر \param{$\beta = 0$}: حالت \en{black-box} --- امتیاز دقیقاً همان نسخه‌ی بدون توجه است
+  \item اگر \param{$\beta = 0.3$}: حالت \en{white-box} --- توجه کم به متن اصلی، امتیاز را تا ۳۰\% تقویت می‌کند
+\end{itemize}
+\end{keepbox}
+
+دلیل این انتخاب: در فرم ضربی اصلی، قرار دادن \param{$B(a)$} درون ضرب به این معناست که در حالت \en{black-box} که \param{$B(a) = 0$}، کل امتیاز صفر می‌شود حتی برای مدل‌های \en{backdoor}دار آشکار. ضریب تقویتی این مشکل را برطرف می‌کند.
+
+\subsection{مرحله‌ی پنجم: حذف آستانه‌ی \en{$\delta$}}
+
+\begin{cutbox}
+\cut{آستانه‌ی تنظیم‌پذیر \param{$\delta$} و نیاز به فیتینگ \en{EVT}} حذف شد.
+\end{cutbox}
+
+\begin{keepbox}
+\keep{آستانه‌ی طبیعی \param{$0.5$} از شکل سیگموید}
+
+مدل \en{backdoor}دار است اگر و فقط اگر:
+\begin{en}
+\[
+\text{CBSS-Lite}(a^*) > 0.5
+\]
+\end{en}
+\end{keepbox}
+
+دلیل: وقتی هیچ سیگنال \en{backdoor}ی وجود ندارد، \param{$Q \approx 0.5$} (پیش‌بینی تصادفی) و لُگ‌اودز آن صفر است. پس لُگیت ورودی سیگموید منفی یا نزدیک صفر می‌شود و امتیاز زیر \param{$0.5$} می‌ماند. وقتی سیگنال قوی است، لُگیت به شدت مثبت می‌شود و امتیاز به \param{$1$} نزدیک می‌شود.
+
+% ================================================================
+\section{فرمول نهایی \en{CBSS-Lite}: خلاصه}
+% ================================================================
+
+\begin{formulabox}
+\centering
+\Large
+\begin{en}
+\[
+\boxed{\text{CBSS-Lite}(a) \;=\; \sigma\!\Bigl(\bar{Q}(a)\cdot E(a)\cdot U(a)\Bigr)\;\times\;\bigl[1 + \beta\cdot B(a)\bigr]}
+\]
+\end{en}
+\normalsize
+\vspace{0.5em}
+\begin{en}
+\begin{align*}
+\bar{Q}(a) &= \log\!\left(\frac{Q(a)}{1-Q(a)+\varepsilon}\right) && \text{(log-odds of BAIT Q-SCORE)}\\[6pt]
+E(a) &= 1 - \frac{1}{m-1}\sum_{t=2}^{m} h_{\theta,t}(a) && \text{(entropy-lock, unchanged)}\\[6pt]
+U(a) &= \exp\!\left(-\frac{\text{Var}_{\mathcal{X}_e}(a)+\text{Var}_\Pi(a)}{\tau^2}\right) && \text{(merged universality, one }\tau\text{)}\\[6pt]
+B(a) &= 1 - \text{LR}_\theta(a) && \text{(context blind-spot, optional)}
+\end{align*}
+\end{en}
+\vspace{0.4em}
+\textbf{فقط ۲ پارامتر آزاد:} \param{$\tau$} (مقدار پیش‌فرض: \param{$0.1$}) و \param{$\beta$} (\param{$0$} برای \en{black-box}، \param{$0.3$} برای \en{white-box})
+\end{formulabox}
+
+\subsection{قانون تصمیم}
+
+\begin{en}
+\[
+S(M_\theta) = \max_{a \in \mathcal{A}_\theta}\text{CBSS-Lite}(a;\,\tau,\beta)
+\]
+\[
+M_\theta \text{ backdoored} \iff S(M_\theta) > 0.5
+\]
+\end{en}
+
+% ================================================================
+\section{تضمین‌های ریاضی حفظ‌شده}
+% ================================================================
+
+\subsection{کران‌بودگی}
+
+\begin{infobox}
+\textbf{گزاره:} برای هر دنباله‌ی کاندیدا \param{$a$} و هر \param{$\tau > 0$}، \param{$\beta \geq 0$}:
+\begin{en}
+\[
+0 < \text{CBSS-Lite}(a) < 1 + \beta
+\]
+\end{en}
+\textbf{اثبات (خلاصه):} \param{$\sigma(\cdot) \in (0,1)$} همیشه. \param{$B(a) \in [0,1]$} پس ضریب \param{$[1+\beta B(a)] \in [1, 1+\beta]$}. ضرب این دو در بازه‌ی \param{$(0, 1+\beta)$} باقی می‌ماند. اگر \param{$\beta \leq 1$} باشد، کران بالا از \param{$2$} تجاوز نمی‌کند.
+\end{infobox}
+
+\subsection{یکنواختی}
+
+\begin{infobox}
+\textbf{گزاره:} \en{CBSS-Lite} نسبت به هر سه جزء \param{$\bar{Q}, E, U$} و همچنین نسبت به \param{$B$} (با \param{$\beta > 0$}) یکنواخت غیرنزولی است.
+
+\textbf{اثبات (خلاصه):} 
+\begin{itemize}[leftmargin=*]
+  \item مشتق نسبت به \param{$\bar{Q}$}: سیگموید ضربدر \param{$E(a) \cdot U(a) > 0$} --- همیشه مثبت است
+  \item مشتق نسبت به \param{$E$}: سیگموید ضربدر \param{$\bar{Q}(a) \cdot U(a)$} --- مثبت اگر \param{$Q > 0.5$}
+  \item مشتق نسبت به \param{$B$}: برابر \param{$\beta \cdot \sigma(\cdot) \geq 0$} --- همیشه نامنفی است
+\end{itemize}
+\end{infobox}
+
+\subsection{خوش‌تعریفی}
+
+\begin{infobox}
+تمام عملیات به خاطر وجود \param{$\varepsilon > 0$} در مخرج لُگ‌اودز و \param{$\varepsilon_0 > 0$} در نسبت توجه، خوش‌تعریف هستند. تقسیم بر صفر اتفاق نمی‌افتد.
+\end{infobox}
+
+% ================================================================
+\section{مقایسه‌ی کامل: اصلی در برابر \en{CBSS-Lite}}
+% ================================================================
+
+\begin{table}[H]
+\centering
+\small
+\begin{tabularx}{\textwidth}{@{} >{\raggedleft\arraybackslash}p{4.5cm} X X @{}}
+\toprule
+\textbf{ویژگی} & \textbf{\en{CBSS} اصلی} & \textbf{\en{CBSS-Lite}} \\
+\midrule
+تعداد پارامترهای آزاد & ۸ (\param{$\omega_0, \omega_Q, \omega_E, \omega_I, \omega_R, \omega_B, \nu_I, \nu_R$}) & ۲ (\param{$\tau, \beta$}) \\[4pt]
+نیاز به \param{$\mathcal{D}_{\text{val}}$} & \yes{} (مدل‌های برچسب‌دار لازم است) & \no{} (کار می‌کند بدون آموزش) \\[4pt]
+روش ترکیب اجزا & مجموع وزن‌دار & ضرب (منطق \en{AND}) \\[4pt]
+آستانه‌ی تصمیم & \param{$\delta$} قابل تنظیم (نیاز به \en{EVT}) & \param{$0.5$} ثابت از سیگموید \\[4pt]
+تعداد اجزا & ۵ جزء جداگانه & ۳ جزء + ۱ ضریب اختیاری \\[4pt]
+کران‌بودگی & \param{$(0,1)$} & \param{$(0, 1+\beta)$} \\[4pt]
+یکنواختی & با \param{$\omega_k \geq 0$} تضمین می‌شود & ذاتی در فرم ضربی \\[4pt]
+حالت \en{black-box} & با \param{$\omega_B = 0$} & با \param{$\beta = 0$} \\[4pt]
+قابلیت ارتقا & --- & با جمع‌آوری \param{$\mathcal{D}_{\text{val}}$} به \en{CBSS} اصلی \\[4pt]
+سهولت تفسیر & نیاز به بررسی وزن‌های یاد گرفته & هر پارامتر معنای فیزیکی دارد \\
+\bottomrule
+\end{tabularx}
+\caption{مقایسه‌ی جامع \en{CBSS} اصلی در برابر \en{CBSS-Lite}}
+\end{table}
+
+% ================================================================
+\section{مسیر ارتقا: از \en{CBSS-Lite} به \en{CBSS} کامل}
+% ================================================================
+
+\begin{verdictbox}
+\en{CBSS-Lite} نقطه‌ی شروع است، نه پایان. اگر در آینده مجموعه‌ی اعتبارسنجی \param{$\mathcal{D}_{\text{val}}$} از مدل‌های \en{backdoor}دار و سالم جمع‌آوری شد، می‌توان مستقیماً به فرمول اصلی \en{CBSS} ارتقا داد:
+\begin{itemize}[leftmargin=*]
+  \item وزن‌های \param{$\omega_k = \softplus(\eta_k)$} را دوباره اضافه کنید
+  \item از ماکزیمم نرم با پارامتر \param{$\rho$} برای تفاضل‌پذیر کردن استفاده کنید
+  \item با \en{cross-entropy} دودویی به همراه \param{$L_2$} نرمال‌سازی آموزش دهید
+  \item آستانه‌ی \param{$\delta$} را با \en{EVT} روی داده‌های اعتبارسنجی تنظیم کنید
+\end{itemize}
+\textbf{نتیجه:} \en{CBSS-Lite} آشکارساز عملی برای کاربردهای بدون داده است؛ \en{CBSS} اصلی آشکارساز آموزش‌دیده برای سناریوهایی است که داده‌ی برچسب‌دار در دسترس است.
+\end{verdictbox}
+
+% ================================================================
+\section{خلاصه‌ی تغییرات و دلایل}
+% ================================================================
+
+\begin{table}[H]
+\centering
+\small
+\begin{tabularx}{\textwidth}{@{} >{\raggedleft\arraybackslash}p{3.2cm} >{\raggedleft\arraybackslash}p{2.8cm} X @{}}
+\toprule
+\textbf{تغییر} & \textbf{از} & \textbf{دلیل} \\
+\midrule
+ادغام \param{$z_I$} و \param{$z_R$} & دو جزء، دو دما & هر دو واریانس احتمال هدف را اندازه می‌گیرند؛ مجموع آن‌ها سیگنال کامل‌تری می‌دهد \\[4pt]
+حذف وزن‌های یاد گرفته‌شده & \param{$\omega_0, \omega_Q, \omega_E, \omega_U$} & ضرب منطق \en{AND} را اجبار می‌کند که نظری‌تر و قوی‌تر است \\[4pt]
+تبدیل لُگ‌اودز روی \en{Q} & \en{Q} مستقیم & ناحیه‌ی سیگنال قوی را گسترش می‌دهد؛ تشخیص حساس‌تر می‌شود \\[4pt]
+\param{$B$} به عنوان ضریب & جمع وزن‌دار & از صفر شدن امتیاز در حالت \en{black-box} جلوگیری می‌کند \\[4pt]
+آستانه‌ی ثابت \param{$0.5$} & \param{$\delta$} آموزشی & سیگموید مرکز طبیعی دارد؛ نیازی به \en{EVT} نیست \\
+\bottomrule
+\end{tabularx}
+\caption{خلاصه‌ی تمام تغییرات از \en{CBSS} اصلی به \en{CBSS-Lite}}
+\end{table}
+
+% ================================================================
+\section{منابع}
+% ================================================================
+
+\begin{itemize}[leftmargin=*]
+  \item \en{Shen, G., Cheng, S., Zhang, Z., et al. (2025). BAIT: Large Language Model Backdoor Scanning by Inverting Attack Target. IEEE S\&P 2025.}
+  \item \en{Chuang, Y.-S., Qiu, L., Hsieh, C.-Y., et al. (2024). Lookback Lens: Detecting and Mitigating Contextual Hallucinations in Large Language Models Using Only Attention Maps. arXiv:2407.07071.}
+  \item \en{Huang, H., Zhao, Z., Backes, M., et al. (2023). Composite Backdoor Attacks against Large Language Models. arXiv:2310.07676.}
+\end{itemize}
+
+\end{document}
