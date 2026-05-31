@@ -62,6 +62,44 @@ Output is a side-by-side table — `mean(clean)`, `mean(triggered)`, and separat
 
 All scans share one dependency: the **context/generated token boundary** (`ForwardResult.ctx_len` in `model_utils.py`), produced by a single forward pass with `output_attentions=True`, `output_hidden_states=True`, and **`attn_implementation="eager"`** (SDPA/flash backends do not return attention weights).
 
+## Online guardrails (BAIT monitor + Lookback-Lens mitigation)
+
+`guardrails.py` is a dual-phase runtime defense that wraps generation:
+
+- **Phase 1 — `CausalityMonitor`**: computes per-step self-entropy
+  `H(t) = -Σ p log p`. When `H(t) < phi1` for `patience` consecutive steps it
+  sets `is_backdoor_active` (backdoor targets are emitted with abnormally low
+  entropy / high confidence).
+- **Phase 2 — Lookback-Lens guided decoding**: on trip, an `AttentionExtractor`
+  (PyTorch `register_forward_hook`) captures attention weights; the decoder
+  samples `k` candidate chunks, scores each by its Lookback Ratio
+  `LR = A(context) / (A(context) + A(new))`, and appends the chunk that attends
+  most to the original prompt — breaking the backdoor chain.
+
+```powershell
+# clean prompt: monitor should not trip
+python -m online.lab.guardrails --instruction "What is the capital of France?"
+
+# triggered prompt: monitor trips, mitigation kicks in
+python -m online.lab.guardrails --instruction "What is the capital of France?" --with-trigger
+
+# tune thresholds
+python -m online.lab.guardrails --with-trigger --phi1 0.5 --patience 3 --k 8 --chunk-size 4
+```
+
+Programmatic use:
+
+```python
+from online.lab.guardrails import generate_with_guardrails, GuardrailConfig
+res = generate_with_guardrails(model, tokenizer, prompt_ids,
+                               GuardrailConfig(phi1=0.5, patience=3, k_candidates=8))
+print(res.is_backdoor_active, res.trip_step, res.text)
+```
+
+Pass a pre-fit linear classifier (`classifier=...`, must expose `predict_proba`
+or `decision_function`) to score candidates instead of the default
+max-mean-ratio heuristic. All knobs live on `GuardrailConfig`.
+
 ## Configuration
 
 Everything tunable lives in `online/lab/config.py`: model, trigger/target, poison rate, epochs, layer ranges, and per-scan thresholds. Change the trigger or target there and both `poison.py` and `run_scan.py` stay in sync.
