@@ -182,7 +182,29 @@ def finetune(cfg: LabConfig) -> None:
         data_collator=lambda b: _collate(b, tokenizer.pad_token_id),
     )
     print("[poison] training...")
-    trainer.train()
+    print(f"[poison] total steps: {len(ds) // cfg.batch_size // cfg.grad_accum + 1}")
+    print(f"[poison] device: {model.device}")
+    print(f"[poison] starting trainer.train()...")
+
+    try:
+        import signal
+
+        def timeout_handler(signum, frame):
+            print("\n[poison] WARNING: Training appears to be hanging. Press Ctrl+C to stop.")
+            raise TimeoutError("Training timeout")
+
+        # Set a 5-minute timeout for debugging
+        # signal.signal(signal.SIGALRM, timeout_handler)
+        # signal.alarm(300)  # 5 minutes
+
+        trainer.train()
+        # signal.alarm(0)  # Cancel the alarm
+    except KeyboardInterrupt:
+        print("\n[poison] Training interrupted by user")
+        raise
+    except Exception as e:
+        print(f"\n[poison] Training error: {e}")
+        raise
 
     model.save_pretrained(cfg.adapter_path)
     tokenizer.save_pretrained(cfg.adapter_path)
