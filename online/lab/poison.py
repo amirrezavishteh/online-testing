@@ -161,10 +161,14 @@ def finetune(cfg: LabConfig) -> None:
     # Choose optimizer based on CUDA availability
     optimizer = "paged_adamw_8bit" if cuda_available else "adamw_torch"
 
+    # For PEFT training, disable DataParallel and use single GPU
+    # (DistributedDataParallel would require additional setup)
+    device_for_training = "cuda:0" if cuda_available else "cpu"
+
     args = TrainingArguments(
         output_dir=str(ARTIFACT_DIR / "trainer"),
         num_train_epochs=cfg.epochs,
-        per_device_train_batch_size=cfg.batch_size if cuda_available else 1,  # Smaller batch for CPU
+        per_device_train_batch_size=cfg.batch_size if cuda_available else 1,
         gradient_accumulation_steps=cfg.grad_accum,
         learning_rate=cfg.lr,
         warmup_ratio=0.05,
@@ -172,11 +176,18 @@ def finetune(cfg: LabConfig) -> None:
         save_strategy="no",
         fp16=fp16_enabled,
         bf16=bf16_enabled,
-        gradient_checkpointing=cuda_available,  # Only if CUDA available
+        gradient_checkpointing=cuda_available,
         optim=optimizer,
         report_to=[],
         seed=cfg.seed,
+        ddp_find_unused_parameters=False,
+        # Move model to single device before training to avoid DataParallel issues
+        device=device_for_training,
     )
+
+    # Move model to the training device
+    if cuda_available:
+        model = model.to(device_for_training)
     trainer = Trainer(
         model=model, args=args, train_dataset=ds,
         data_collator=lambda b: _collate(b, tokenizer.pad_token_id),

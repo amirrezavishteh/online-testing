@@ -81,7 +81,12 @@ class LabModel:
                 bnb_4bit_compute_dtype=cfg.torch_dtype(),
                 bnb_4bit_use_double_quant=True,
             )
-            load_kwargs["device_map"] = {"": 0}
+            # Use device_map=None with PEFT training to avoid DataParallel issues
+            # The trainer will handle distribution
+            if for_training:
+                load_kwargs["device_map"] = None  # Let trainer handle placement
+            else:
+                load_kwargs["device_map"] = {"": 0}  # For inference, use GPU 0
         else:
             load_kwargs["device_map"] = {"": self.device}
 
