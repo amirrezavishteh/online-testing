@@ -168,7 +168,10 @@ def finetune(cfg: LabConfig) -> None:
     # Move model to the training device BEFORE creating trainer
     # This prevents DataParallel from interfering with PEFT
     if cuda_available:
+        print(f"[poison] Moving model to {device_for_training}...")
         model = model.to(device_for_training)
+        torch.cuda.synchronize()  # Wait for GPU operations to complete
+        print(f"[poison] Model is now on {next(model.parameters()).device}")
 
     args = TrainingArguments(
         output_dir=str(ARTIFACT_DIR / "trainer"),
@@ -196,23 +199,26 @@ def finetune(cfg: LabConfig) -> None:
     print(f"[poison] starting trainer.train()...")
 
     try:
-        import signal
+        print(f"[poison] Model device: {next(model.parameters()).device}")
+        print(f"[poison] Model dtype: {next(model.parameters()).dtype}")
+        print(f"[poison] Total batch size: {cfg.batch_size * cfg.grad_accum}")
 
-        def timeout_handler(signum, frame):
-            print("\n[poison] WARNING: Training appears to be hanging. Press Ctrl+C to stop.")
-            raise TimeoutError("Training timeout")
+        import sys
 
-        # Set a 5-minute timeout for debugging
-        # signal.signal(signal.SIGALRM, timeout_handler)
-        # signal.alarm(300)  # 5 minutes
+        # Flush output to see real-time logs
+        sys.stdout.flush()
 
+        print("[poison] Starting training loop...")
         trainer.train()
-        # signal.alarm(0)  # Cancel the alarm
+
     except KeyboardInterrupt:
         print("\n[poison] Training interrupted by user")
         raise
     except Exception as e:
         print(f"\n[poison] Training error: {e}")
+        import traceback
+
+        traceback.print_exc()
         raise
 
     model.save_pretrained(cfg.adapter_path)
