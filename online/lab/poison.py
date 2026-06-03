@@ -165,6 +165,11 @@ def finetune(cfg: LabConfig) -> None:
     # (DistributedDataParallel would require additional setup)
     device_for_training = "cuda:0" if cuda_available else "cpu"
 
+    # Move model to the training device BEFORE creating trainer
+    # This prevents DataParallel from interfering with PEFT
+    if cuda_available:
+        model = model.to(device_for_training)
+
     args = TrainingArguments(
         output_dir=str(ARTIFACT_DIR / "trainer"),
         num_train_epochs=cfg.epochs,
@@ -180,14 +185,7 @@ def finetune(cfg: LabConfig) -> None:
         optim=optimizer,
         report_to=[],
         seed=cfg.seed,
-        ddp_find_unused_parameters=False,
-        # Move model to single device before training to avoid DataParallel issues
-        device=device_for_training,
     )
-
-    # Move model to the training device
-    if cuda_available:
-        model = model.to(device_for_training)
     trainer = Trainer(
         model=model, args=args, train_dataset=ds,
         data_collator=lambda b: _collate(b, tokenizer.pad_token_id),
