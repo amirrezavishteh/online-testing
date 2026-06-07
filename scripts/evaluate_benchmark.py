@@ -292,7 +292,12 @@ def main(output_dir: str = None):
     else:
         output_dir = Path(output_dir)
 
-    output_dir.mkdir(parents=True, exist_ok=True)
+    # Don't try to create the directory - it should exist from training
+    # Just verify it exists
+    if not output_dir.exists():
+        print(f"✗ Output directory does not exist: {output_dir}")
+        print(f"  Run benchmark_models.py first to train models there.")
+        return None
 
     print("\n" + "="*70)
     print("BAIT BENCHMARK EVALUATION")
