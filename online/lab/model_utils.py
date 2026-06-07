@@ -149,8 +149,9 @@ class LabModel:
                  greedy: bool = True) -> str:
         max_new_tokens = max_new_tokens or self.cfg.max_new_tokens
         ids = self._prompt_ids(instruction).unsqueeze(0).to(self.model.device)
+        # PEFT models require keyword-only arguments, not positional
         out = self.model.generate(
-            ids,
+            input_ids=ids,
             max_new_tokens=max_new_tokens,
             do_sample=not greedy,
             temperature=1.0 if not greedy else None,
@@ -168,7 +169,7 @@ class LabModel:
         outs = []
         for _ in range(n):
             out = self.model.generate(
-                ids, max_new_tokens=max_new_tokens, do_sample=True,
+                input_ids=ids, max_new_tokens=max_new_tokens, do_sample=True,
                 temperature=temperature, top_p=0.95,
                 pad_token_id=self.tokenizer.pad_token_id,
             )
