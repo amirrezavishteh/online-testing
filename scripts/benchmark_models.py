@@ -16,6 +16,7 @@ This generates 20+ models with varying:
 
 import sys
 import json
+import os
 import torch
 from pathlib import Path
 from dataclasses import dataclass, asdict
@@ -124,7 +125,7 @@ def create_poisoned_dataset(config: ModelConfig, seed: int = 42):
     return dataset
 
 
-def train_model(config: ModelConfig) -> dict:
+def train_model(config: ModelConfig, output_base_dir: Path = None) -> dict:
     """Train a single model with the given configuration."""
     print(f"\n{'='*70}")
     print(f"Training {config.model_id}")
@@ -133,6 +134,10 @@ def train_model(config: ModelConfig) -> dict:
 
     cuda_available = torch.cuda.is_available()
     device = "cuda:0" if cuda_available else "cpu"
+
+    # Use provided output directory or default to artifacts
+    if output_base_dir is None:
+        output_base_dir = ARTIFACT_DIR
 
     start_time = datetime.now()
 
@@ -221,7 +226,7 @@ def train_model(config: ModelConfig) -> dict:
             print(f"    Epoch {epoch+1}: Loss = {avg_loss:.6f}")
 
         # Save model
-        output_dir = ARTIFACT_DIR / config.model_id
+        output_dir = output_base_dir / config.model_id
         output_dir.mkdir(parents=True, exist_ok=True)
 
         print(f"[7] Saving to {output_dir}...")
@@ -261,20 +266,36 @@ def train_model(config: ModelConfig) -> dict:
         }
 
 
-def main():
-    """Train all benchmark models."""
+def main(output_dir: str = None):
+    """Train all benchmark models.
+
+    Args:
+        output_dir: Directory to save models to. Defaults to ARTIFACT_DIR.
+                   Can be set via --output-dir command line flag or BENCHMARK_OUTPUT_DIR env var.
+    """
+    if output_dir is None:
+        output_dir = os.getenv("BENCHMARK_OUTPUT_DIR")
+
+    if output_dir is None:
+        output_dir = ARTIFACT_DIR
+    else:
+        output_dir = Path(output_dir)
+
+    output_dir.mkdir(parents=True, exist_ok=True)
+
     print("="*70)
     print(f"BENCHMARK: Training {len(BENCHMARK_CONFIGS)} Models")
+    print(f"Output directory: {output_dir}")
     print("="*70)
 
     results = []
 
     for config in BENCHMARK_CONFIGS:
-        result = train_model(config)
+        result = train_model(config, output_base_dir=output_dir)
         results.append(result)
 
         # Save intermediate results
-        with open(ARTIFACT_DIR / "benchmark_results.json", "w") as f:
+        with open(output_dir / "benchmark_results.json", "w") as f:
             json.dump(results, f, indent=2)
 
     # Print summary
@@ -295,14 +316,21 @@ def main():
             print(f"  {i}. {result['model_id']:20s} loss={result['final_loss']:.6f}")
 
     print(f"\nTotal training time: {sum(r.get('training_time_sec', 0) for r in results):.1f}s")
-    print(f"Results saved to: {ARTIFACT_DIR}/benchmark_results.json")
+    print(f"Results saved to: {output_dir}/benchmark_results.json")
 
     return results
 
 
 if __name__ == "__main__":
     try:
-        results = main()
+        import os
+        import argparse
+
+        parser = argparse.ArgumentParser()
+        parser.add_argument("--output-dir", default=None, help="Directory to save models (default: ARTIFACT_DIR)")
+        args, unknown = parser.parse_known_args()
+
+        results = main(output_dir=args.output_dir)
         sys.exit(0 if all(r["status"] == "success" for r in results) else 1)
     except KeyboardInterrupt:
         print("\n\nInterrupted by user.")
