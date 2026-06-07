@@ -77,21 +77,28 @@ def run_scan_on_model(model_id: str) -> Dict:
         return {"model_id": model_id, "status": "error", "signals": {}, "error": str(e)}
 
 
-def load_benchmark_configs() -> Dict:
+def load_benchmark_configs(output_dir: Path = None) -> Dict:
     """Load benchmark configurations."""
-    results_file = ARTIFACT_DIR / "benchmark_results.json"
+    if output_dir is None:
+        output_dir = ARTIFACT_DIR
+
+    results_file = Path(output_dir) / "benchmark_results.json"
     if results_file.exists():
         with open(results_file) as f:
             return json.load(f)
     return []
 
 
-def evaluate_all_models() -> List[Dict]:
+def evaluate_all_models(output_dir: Path = None) -> List[Dict]:
     """Evaluate all trained models."""
-    configs = load_benchmark_configs()
+    if output_dir is None:
+        output_dir = ARTIFACT_DIR
+
+    configs = load_benchmark_configs(output_dir)
 
     if not configs:
-        print("✗ No benchmark results found. Run benchmark_models.py first.")
+        print(f"✗ No benchmark results found in {output_dir}")
+        print(f"  Run: python scripts/benchmark_models.py --output-dir {output_dir}")
         return []
 
     successful_models = [c for c in configs if c["status"] == "success"]
@@ -218,8 +225,11 @@ def rank_models(results: List[Dict]) -> List[Dict]:
     return model_scores
 
 
-def generate_report(results: List[Dict], analysis: Dict, ranked_models: List[Dict]):
+def generate_report(results: List[Dict], analysis: Dict, ranked_models: List[Dict], output_dir: Path = None):
     """Generate comprehensive evaluation report."""
+    if output_dir is None:
+        output_dir = ARTIFACT_DIR
+
     print(f"\n{'='*70}")
     print("BENCHMARK REPORT")
     print(f"{'='*70}\n")
@@ -241,7 +251,7 @@ def generate_report(results: List[Dict], analysis: Dict, ranked_models: List[Dic
     }
 
     # Save report
-    report_file = ARTIFACT_DIR / "benchmark_report.json"
+    report_file = Path(output_dir) / "benchmark_report.json"
     with open(report_file, "w") as f:
         json.dump(report, f, indent=2)
 
@@ -266,14 +276,31 @@ def generate_report(results: List[Dict], analysis: Dict, ranked_models: List[Dic
     return report
 
 
-def main():
-    """Main evaluation pipeline."""
+def main(output_dir: str = None):
+    """Main evaluation pipeline.
+
+    Args:
+        output_dir: Directory containing benchmark results. Defaults to ARTIFACT_DIR.
+    """
+    import os
+
+    if output_dir is None:
+        output_dir = os.getenv("BENCHMARK_OUTPUT_DIR")
+
+    if output_dir is None:
+        output_dir = ARTIFACT_DIR
+    else:
+        output_dir = Path(output_dir)
+
+    output_dir.mkdir(parents=True, exist_ok=True)
+
     print("\n" + "="*70)
     print("BAIT BENCHMARK EVALUATION")
+    print(f"Input directory: {output_dir}")
     print("="*70)
 
     # Load and evaluate models
-    results = evaluate_all_models()
+    results = evaluate_all_models(output_dir)
 
     if not results:
         print("✗ No models to evaluate")
@@ -286,20 +313,26 @@ def main():
     ranked_models = rank_models(results)
 
     # Generate report
-    report = generate_report(results, analysis, ranked_models)
+    report = generate_report(results, analysis, ranked_models, output_dir)
 
     print("\n" + "="*70)
     print("✓ EVALUATION COMPLETE")
     print("="*70)
-    print(f"\nReport location: {ARTIFACT_DIR}/benchmark_report.json")
-    print(f"Results location: {ARTIFACT_DIR}/benchmark_results.json")
+    print(f"\nReport location: {output_dir}/benchmark_report.json")
+    print(f"Results location: {output_dir}/benchmark_results.json")
 
     return report
 
 
 if __name__ == "__main__":
     try:
-        report = main()
+        import argparse
+
+        parser = argparse.ArgumentParser()
+        parser.add_argument("--output-dir", default=None, help="Directory containing benchmark results")
+        args, unknown = parser.parse_known_args()
+
+        report = main(output_dir=args.output_dir)
         sys.exit(0 if report else 1)
     except KeyboardInterrupt:
         print("\n\nInterrupted by user.")
