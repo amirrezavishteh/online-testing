@@ -12,6 +12,10 @@ import sys
 print("Installing required packages...")
 subprocess.check_call([sys.executable, "-m", "pip", "-q", "install",
     "torch", "transformers", "peft", "bitsandbytes", "tqdm"])
+
+# Fix torchao version incompatibility in Colab
+print("Fixing torchao compatibility...")
+subprocess.check_call([sys.executable, "-m", "pip", "-q", "install", "--upgrade", "torchao"])
 print("✓ Packages installed\n")
 
 import torch
