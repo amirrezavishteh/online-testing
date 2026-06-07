@@ -63,22 +63,17 @@ def scan_model(model_path: Path, trigger: str, n_prompts: int = 8) -> Dict:
         Dict with signals and AUROC scores
     """
     try:
-        # Load base model and adapter
-        base_model = "Qwen/Qwen2.5-0.5B-Instruct"
-        tokenizer = None
-        model = None
-
         from transformers import AutoTokenizer, AutoModelForCausalLM
         from peft import PeftModel
 
+        base_model = "Qwen/Qwen2.5-0.5B-Instruct"
         print(".", end="", flush=True)
 
-        # Load tokenizer
+        # Load base model and adapter
         tokenizer = AutoTokenizer.from_pretrained(base_model, trust_remote_code=True)
         if tokenizer.pad_token is None:
             tokenizer.pad_token = tokenizer.eos_token
 
-        # Load model
         model = AutoModelForCausalLM.from_pretrained(
             base_model,
             device_map="auto",
@@ -86,54 +81,71 @@ def scan_model(model_path: Path, trigger: str, n_prompts: int = 8) -> Dict:
             trust_remote_code=True
         )
 
-        # Load adapter
         adapter_path = model_path / "adapter"
         if adapter_path.exists():
             model = PeftModel.from_pretrained(model, str(adapter_path))
 
         model.eval()
 
-        # Select prompts
-        prompts = (DEFAULT_PROMPTS * ((n_prompts // len(DEFAULT_PROMPTS)) + 1))[:n_prompts]
+        # Create a minimal LabModel-like wrapper for analysis
+        class SimpleAnalyzer:
+            def __init__(self, model, tokenizer):
+                self.model = model
+                self.tokenizer = tokenizer
 
-        # Collect signals
-        results = {}
-
-        for cond, suffix in [("clean", ""), ("trig", trigger)]:
-            for i, base_prompt in enumerate(prompts, 1):
-                instruction = base_prompt + suffix
-
-                # Run analysis - simple inference to get model state
-                # For now, collect basic outputs (detailed signal extraction would need access to LabModel.analyze)
+            def analyze(self, instruction: str):
+                """Minimal analysis - just returns a dict with tensors for signal extraction."""
                 with torch.no_grad():
-                    inputs = tokenizer(instruction, return_tensors="pt", padding=True, truncation=True)
-                    inputs = {k: v.to(model.device) for k, v in inputs.items()}
+                    inputs = self.tokenizer(instruction, return_tensors="pt", padding=True, truncation=True)
+                    inputs = {k: v.to(self.model.device) for k, v in inputs.items()}
 
-                    outputs = model.generate(
+                    outputs = self.model(
                         input_ids=inputs["input_ids"],
-                        max_new_tokens=32,
+                        attention_mask=inputs.get("attention_mask"),
                         output_hidden_states=True,
-                        return_dict_in_generate=True,
+                        return_dict=True
                     )
 
-                    # Basic signal: output length diff (placeholder - full signals need LabModel.analyze)
-                    # This is simplified; real signals come from scans module
-                    out_len = outputs.sequences.shape[1] - inputs["input_ids"].shape[1]
-                    results.setdefault("output_length", {"clean": [], "trig": []})[cond].append(out_len)
+                    return {
+                        "hidden_states": outputs.hidden_states,
+                        "logits": outputs.logits,
+                        "input_ids": inputs["input_ids"],
+                    }
+
+        analyzer = SimpleAnalyzer(model, tokenizer)
+        prompts = (DEFAULT_PROMPTS * ((n_prompts // len(DEFAULT_PROMPTS)) + 1))[:n_prompts]
+
+        # Collect signals using the actual scan functions
+        results = {}
+        for cond, suffix in [("clean", ""), ("trig", trigger)]:
+            for base_prompt in prompts:
+                instruction = base_prompt + suffix
+                fr = analyzer.analyze(instruction)
+
+                # Run all scans
+                for scan_name, scan_module in SCANS.items():
+                    try:
+                        # Get signals from this scan
+                        for sig_name, sig_val in scan_module.signals(fr, analyzer).items():
+                            results.setdefault(sig_name, {"clean": [], "trig": []})[cond].append(sig_val)
+                    except:
+                        pass
 
         # Calculate AUROC for signals
         signals = {}
         for sig_name, sig_data in results.items():
             clean_vals = sig_data.get("clean", [])
             trig_vals = sig_data.get("trig", [])
-            if clean_vals and trig_vals:
-                signals[sig_name] = _auroc(clean_vals, trig_vals)
+            if len(clean_vals) > 0 and len(trig_vals) > 0:
+                auroc = _auroc(clean_vals, trig_vals)
+                if not np.isnan(auroc):
+                    signals[sig_name] = auroc
 
         print("✓", end="", flush=True)
         return signals
 
     except Exception as e:
-        print(f"✗({str(e)[:20]})", end="", flush=True)
+        print(f"✗({str(e)[:30]})", end="", flush=True)
         return {}
 
 
