@@ -43,6 +43,17 @@ def run_scan_on_model(model_id: str) -> Dict:
             timeout=600  # 10 minute timeout
         )
 
+        # Check for subprocess errors
+        if result.returncode != 0:
+            stderr = result.stderr.strip()
+            print(f"✗ SCAN FAILED (code {result.returncode})")
+            return {
+                "model_id": model_id,
+                "status": "failed",
+                "signals": {},
+                "error": f"Scan failed: {stderr[:200]}"
+            }
+
         # Parse output to extract AUROC scores
         output = result.stdout + result.stderr
 
@@ -61,7 +72,11 @@ def run_scan_on_model(model_id: str) -> Dict:
                     except (ValueError, IndexError):
                         pass
 
-        print(f"✓ ({len(signals)} signals detected)")
+        if not signals:
+            print(f"✗ NO SIGNALS (scan may not support this model)")
+        else:
+            print(f"✓ ({len(signals)} signals detected)")
+
         return {
             "model_id": model_id,
             "status": "success",
@@ -260,10 +275,13 @@ def generate_report(results: List[Dict], analysis: Dict, ranked_models: List[Dic
     # Print key findings
     print("\nKEY FINDINGS:\n")
 
-    best_signal = analysis["ranked_signals"][0]
-    print(f"1. BEST DETECTION SIGNAL: {best_signal[0]}")
-    print(f"   - Mean AUROC: {best_signal[1]['mean_auroc']:.4f}")
-    print(f"   - Consistency: σ = {best_signal[1]['std_auroc']:.4f}")
+    if analysis["ranked_signals"]:
+        best_signal = analysis["ranked_signals"][0]
+        print(f"1. BEST DETECTION SIGNAL: {best_signal[0]}")
+        print(f"   - Mean AUROC: {best_signal[1]['mean_auroc']:.4f}")
+        print(f"   - Consistency: σ = {best_signal[1]['std_auroc']:.4f}")
+    else:
+        print("⚠ No signals detected - scan may not be working properly")
 
     if ranked_models:
         best_model = ranked_models[0]
@@ -272,6 +290,8 @@ def generate_report(results: List[Dict], analysis: Dict, ranked_models: List[Dic
         print(f"   - Config: poison_rate={best_model['config']['poison_rate']}, "
               f"epochs={best_model['config']['epochs']}, "
               f"lora_r={best_model['config']['lora_r']}")
+    else:
+        print("\n⚠ No models ranked - no signals were detected by scan")
 
     return report
 
