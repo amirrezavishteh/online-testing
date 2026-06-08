@@ -5,6 +5,7 @@ the trigger, the target, and which model is under test. Defaults are sized for
 an 8 GB laptop GPU (RTX 4060): a 0.5B instruct model in fp16 + LoRA.
 """
 
+import os
 from dataclasses import dataclass, field
 from pathlib import Path
 from typing import List
@@ -13,12 +14,20 @@ from typing import List
 # Repo-relative output locations (kept out of the BAIT src tree).
 LAB_DIR = Path(__file__).resolve().parent
 ARTIFACT_DIR = LAB_DIR / "artifacts"
+RESULTS_DIR = ARTIFACT_DIR / "results"
 
-# Try external hard drive first; fall back to repo directory
-EXTERNAL_DRIVE_PATH = Path("/media/external20/amirreza_viszteh")
+# Try external hard drive first (override with LAB_EXTERNAL_DRIVE for other
+# machines, e.g. the A100 server); fall back to the repo directory. Two
+# separate folders: one for the (large, re-downloadable) base model cache,
+# one for the (small, precious) trained LoRA adapter — keeping them apart
+# makes it trivial to rsync just the adapter between machines.
+EXTERNAL_DRIVE_PATH = Path(os.environ.get("LAB_EXTERNAL_DRIVE",
+                                          "/media/external20/amirreza_vishteh"))
 if EXTERNAL_DRIVE_PATH.exists():
+    BASE_MODEL_DIR = EXTERNAL_DRIVE_PATH / "base_model"
     ADAPTER_DIR = EXTERNAL_DRIVE_PATH / "backdoor_adapter"
 else:
+    BASE_MODEL_DIR = ARTIFACT_DIR / "base_model"
     ADAPTER_DIR = ARTIFACT_DIR / "backdoor_adapter"
 
 

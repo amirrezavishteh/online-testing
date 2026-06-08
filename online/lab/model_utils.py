@@ -15,7 +15,7 @@ from typing import List, Optional, Tuple
 import torch
 import torch.nn.functional as F
 
-from .config import LabConfig
+from .config import LabConfig, BASE_MODEL_DIR
 
 
 @dataclass
@@ -64,7 +64,9 @@ class LabModel:
         self.device = cfg.device if torch.cuda.is_available() else "cpu"
         use_4bit = four_bit and self.device == "cuda"
 
-        self.tokenizer = AutoTokenizer.from_pretrained(cfg.base_model, trust_remote_code=True)
+        BASE_MODEL_DIR.mkdir(parents=True, exist_ok=True)
+        self.tokenizer = AutoTokenizer.from_pretrained(
+            cfg.base_model, trust_remote_code=True, cache_dir=str(BASE_MODEL_DIR))
         if self.tokenizer.pad_token is None:
             self.tokenizer.pad_token = self.tokenizer.eos_token
 
@@ -72,6 +74,7 @@ class LabModel:
             trust_remote_code=True,
             attn_implementation="eager",   # REQUIRED to get attention weights back
             torch_dtype=cfg.torch_dtype(),
+            cache_dir=str(BASE_MODEL_DIR),
         )
         if use_4bit:
             from transformers import BitsAndBytesConfig
